@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/fl_activity_camera_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:background="@color/color_9b9b9b" />
+
+    <ImageButton
+        android:id="@+id/ibt_activity_camera_close"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:background="@drawable/ripple_oval_primary"
+        android:padding="10dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_close_white"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/ibt_activity_camera_picture_send"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:background="@drawable/ripple_oval_primary"
+        android:padding="10dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_send_white"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/bt_activity_camera_record"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/ic_camera_shot"
+        android:elevation="2dp"
+        android:text="@string/number_zero"
+        android:textColor="@color/color_4a4a4a"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/fl_activity_camera_picture_container"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginLeft="25dp"
+        android:clickable="true"
+        android:elevation="2dp"
+        android:focusable="true"
+        android:foreground="@drawable/ripple_oval_primary"
+        app:layout_constraintBottom_toBottomOf="@id/bt_activity_camera_record"
+        app:layout_constraintLeft_toRightOf="@id/bt_activity_camera_record"
+        app:layout_constraintTop_toTopOf="@id/bt_activity_camera_record">
+
+        <ImageView
+            android:id="@+id/iv_activity_camera_picture"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerInside" />
+
+    </FrameLayout>
+
+</android.support.constraint.ConstraintLayout>
