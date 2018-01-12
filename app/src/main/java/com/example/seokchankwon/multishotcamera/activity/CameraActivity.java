@@ -1,16 +1,17 @@
 package com.example.seokchankwon.multishotcamera.activity;
 
-import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.annotation.Px;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.Fragment;
+import android.support.annotation.WorkerThread;
 import android.support.v7.app.AppCompatActivity;
-import android.view.ViewTreeObserver;
+import android.text.TextUtils;
+import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -22,10 +23,12 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.example.seokchankwon.multishotcamera.GlobalConstant;
 import com.example.seokchankwon.multishotcamera.R;
-import com.github.florent37.camerafragment.CameraFragment;
-import com.github.florent37.camerafragment.configuration.Configuration;
-import com.github.florent37.camerafragment.listeners.CameraFragmentResultListener;
-import com.github.florent37.camerafragment.listeners.CameraFragmentStateListener;
+import com.example.seokchankwon.multishotcamera.util.FileUtil;
+import com.example.seokchankwon.multishotcamera.util.GlobalApplication;
+import com.otaliastudios.cameraview.CameraException;
+import com.otaliastudios.cameraview.CameraListener;
+import com.otaliastudios.cameraview.CameraUtils;
+import com.otaliastudios.cameraview.CameraView;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -34,30 +37,30 @@ import java.util.ArrayList;
  * Created by seokchan.kwon on 2018. 1. 8..
  */
 
-public class CameraActivity extends AppCompatActivity implements CameraFragmentResultListener, CameraFragmentStateListener {
+public class CameraActivity extends AppCompatActivity {
 
-    public static final String SAVED_PICTURE_URIS = "saved.picture_uris";
-    public static final String EXTRA_LIMIT_PICTURE_COUNT = "extra.limit_picture_count";
+    public static final String SAVED_CAPTURE_PATHS = "saved.capture_paths";
+    public static final String EXTRA_LIMIT_CAPTURE_COUNT = "extra.limit_capture_count";
 
-    public static final String REQUEST_EXTRA_PICTURE_URIS = "request_extra.picture_uris";
+    public static final String REQUEST_EXTRA_CAPTURE_PATHS = "request_extra.capture_paths";
 
-    public static final String FRAGMENT_TAG_CAMERA = "fragment_tag.camera";
+    public static final int REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY = 1000;
 
-    private int mDisplayDegrees;
-    private int mLimitPictureCount;
+    private int mLimitCaptureCount;
 
-    private FrameLayout flPictureContainer;
-
-    private ImageView ivPicture;
-
-    private ImageButton ibtPictureSend;
-    private ImageButton ibtCameraFinish;
+    private CameraView mCameraView;
 
     private Button btCameraRecord;
 
-    private ArrayList<String> mPictureUris;
+    private ImageView ivLatestCapture;
 
-    public Thread mRecordButtonEnableThread;
+    private ImageButton ibtCapturesSend;
+    private ImageButton ibtCameraFinish;
+
+    private FrameLayout flCaptureContainer;
+
+    private ArrayList<String> mCapturePaths;
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -65,328 +68,277 @@ public class CameraActivity extends AppCompatActivity implements CameraFragmentR
         setContentView(R.layout.activity_camera);
 
         initView();
-        moveViewTranslateY();
+        initCameraView();
 
         setupInstanceState(savedInstanceState);
 
-        replaceCameraFragment();
-        updateLatestPictureImageView();
-
-        // 찍은 사진의 개수만큼 표시
-        btCameraRecord.setText(String.valueOf(mPictureUris.size()));
+        updateDisplayViews();
 
         // 촬영버튼 클릭
         btCameraRecord.setOnClickListener(v -> takePicture());
 
         // 찍은 사진 보기
-        flPictureContainer.setOnClickListener(v -> movingCameraImageActivity());
+        flCaptureContainer.setOnClickListener(v -> movingCapturePreviewActivity());
 
         // 찍은 사진 보내기
-        ibtPictureSend.setOnClickListener(v -> sendPicture());
+        ibtCapturesSend.setOnClickListener(v -> sendCaptureImage());
 
         // 카메라 종료
-        ibtCameraFinish.setOnClickListener(v -> finish());
+        ibtCameraFinish.setOnClickListener(v -> cancelCameraActivity());
 
     }
 
-    private void setupInstanceState(@Nullable Bundle savedInstanceState) {
-        if (savedInstanceState != null) {
-            mPictureUris = savedInstanceState.getStringArrayList(SAVED_PICTURE_URIS);
-            mLimitPictureCount = savedInstanceState.getInt(EXTRA_LIMIT_PICTURE_COUNT, 10);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mCameraView.start();
+    }
 
-        } else {
-            mPictureUris = new ArrayList<>();
-            mLimitPictureCount = getIntent().getIntExtra(EXTRA_LIMIT_PICTURE_COUNT, 10);
-        }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mCameraView.stop();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mRecordButtonEnableThread != null && !mRecordButtonEnableThread.isInterrupted()) {
-            mRecordButtonEnableThread.interrupt();
+        mCameraView.destroy();
+    }
+
+    @Override
+    public void onBackPressed() {
+        cancelCameraActivity();
+    }
+
+    private void setupInstanceState(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState != null) {
+            mCapturePaths = savedInstanceState.getStringArrayList(SAVED_CAPTURE_PATHS);
+            mLimitCaptureCount = savedInstanceState.getInt(EXTRA_LIMIT_CAPTURE_COUNT, 10);
+
+        } else {
+            mCapturePaths = new ArrayList<>();
+            mLimitCaptureCount = getIntent().getIntExtra(EXTRA_LIMIT_CAPTURE_COUNT, 10);
         }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt(EXTRA_LIMIT_PICTURE_COUNT, mLimitPictureCount);
-        outState.putStringArrayList(SAVED_PICTURE_URIS, mPictureUris);
+        outState.putInt(EXTRA_LIMIT_CAPTURE_COUNT, mLimitCaptureCount);
+        outState.putStringArrayList(SAVED_CAPTURE_PATHS, mCapturePaths);
     }
 
     private void initView() {
+        mCameraView = findViewById(R.id.fl_activity_camera_view);
         btCameraRecord = findViewById(R.id.bt_activity_camera_record);
-        ivPicture = findViewById(R.id.iv_activity_camera_picture);
-        ibtPictureSend = findViewById(R.id.ibt_activity_camera_picture_send);
+        ivLatestCapture = findViewById(R.id.iv_activity_camera_latest_capture);
+        ibtCapturesSend = findViewById(R.id.ibt_activity_camera_capture_send);
         ibtCameraFinish = findViewById(R.id.ibt_activity_camera_close);
-        flPictureContainer = findViewById(R.id.fl_activity_camera_picture_container);
+        flCaptureContainer = findViewById(R.id.fl_activity_camera_capture_container);
     }
 
-    private void moveViewTranslateY() {
-        // CameraFragment 버그(?) 스테이터스바 영역까지 침범하기 때문에, 그만큼 아래로 내림.
+    private void initCameraView() {
+        mCameraView.addCameraListener(new CameraListener() {
 
-        ibtPictureSend.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             @Override
-            public boolean onPreDraw() {
-                ibtPictureSend.getViewTreeObserver().removeOnPreDrawListener(this);
-                ibtPictureSend.setTranslationY(getStatusBarSize());
-                return false;
+            public void onPictureTaken(byte[] jpeg) {
+                super.onPictureTaken(jpeg);
+                byteToFile(jpeg);
+            }
+
+            @Override
+            public void onCameraError(@NonNull CameraException exception) {
+                super.onCameraError(exception);
+                btCameraRecord.setEnabled(true);
+            }
+
+            @Override
+            public void onOrientationChanged(int orientation) {
+                super.onOrientationChanged(orientation);
+                startRotateViewAnimation(orientation);
             }
         });
-
-        ibtCameraFinish.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-                ibtCameraFinish.getViewTreeObserver().removeOnPreDrawListener(this);
-                ibtCameraFinish.setTranslationY(getStatusBarSize());
-                return false;
-            }
-        });
-
-    }
-
-    private void replaceCameraFragment() {
-        // 카메라 프래그먼트 replace.
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, getString(R.string.permission_denied_message), Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-//        CameraFragment fragment = getCameraFragment();
-//        if (fragment != null && fragment.isAdded()) {
-//            detachCameraFragment();
-//        }
-
-        CameraFragment cameraFragment = CameraFragment.newInstance(
-                new Configuration.Builder()
-                        .setCamera(Configuration.CAMERA_FACE_REAR)
-                        .setFlashMode(Configuration.FLASH_MODE_OFF)
-                        .setMediaAction(Configuration.MEDIA_ACTION_PHOTO)
-                        .setMediaQuality(Configuration.MEDIA_QUALITY_HIGH)
-                        .build());
-
-        getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fl_activity_camera_container, cameraFragment, FRAGMENT_TAG_CAMERA)
-                .commit();
-
-        cameraFragment.setStateListener(this);
-    }
-
-    private void detachCameraFragment() {
-        // 카메라 프래그먼트 remove.
-        CameraFragment cameraFragment = getCameraFragment();
-        if (cameraFragment == null || !cameraFragment.isAdded()) {
-            return;
-        }
-
-        getSupportFragmentManager().beginTransaction()
-                .remove(cameraFragment)
-                .commit();
     }
 
     private void takePicture() {
-        if (mLimitPictureCount <= mPictureUris.size()) {
+        if (mCapturePaths.size() >= mLimitCaptureCount) {
             String toastMsg = getString(R.string.take_picture_max)
-                    + String.valueOf(mLimitPictureCount)
+                    + " " + String.valueOf(mLimitCaptureCount)
                     + getString(R.string.take_picture_max_select);
             Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // 사진 촬영
-        CameraFragment cameraFragment = getCameraFragment();
-        if (cameraFragment == null) {
-            return;
-        }
-
-        cameraFragment.takePhotoOrCaptureVideo(
-                this, GlobalConstant.APP_DCIM_DIR_PATH, "" + System.currentTimeMillis());
-
-        // cameraFragment 버그(?) 가끔 사진 찍기에 실패하는 경우가 있음
-        // 콜백에는 실패에 대한 메소드가 없기 때문에 위에서 Disable 처리한 버튼을 Enable 상태로 변경해 줘야함.
-        startRecordButtonEnableThread();
+        mCameraView.capturePicture();
+        setDisplayViewsEnable(false);
     }
 
-    private void startRecordButtonEnableThread() {
-        mRecordButtonEnableThread = new Thread(() -> {
+    private void sendCaptureImage() {
 
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        new Thread(() -> {
+            for (String path : mCapturePaths) {
+                updateGallery(path);
             }
+        }).start();
 
-            if (!isFinishing()) {
-                if (!btCameraRecord.isEnabled()) {
-                    runOnUiThread(() -> btCameraRecord.setEnabled(true));
-                }
-            }
-        });
-
-        mRecordButtonEnableThread.start();
-    }
-
-    private void sendPicture() {
         Intent intent = new Intent();
-        intent.putStringArrayListExtra(REQUEST_EXTRA_PICTURE_URIS, mPictureUris);
+        intent.putStringArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mCapturePaths);
         setResult(RESULT_OK, intent);
+
         finish();
     }
 
-    private void movingCameraImageActivity() {
+    private void cancelCameraActivity() {
+        new Thread(() -> {
+            for (String path : mCapturePaths) {
+                FileUtil.deleteFile(path);
+            }
+        }).start();
 
+        finish();
     }
 
-    @Override
-    public void onVideoRecorded(String filePath) {
-        // 동영상 촬영 완료 Callback
-        // 동영상 구현x
+    private void byteToFile(byte[] jpeg) {
+        CameraUtils.decodeBitmap(jpeg, bitmap ->
+                new Thread(() -> {
+
+                    Bitmap resizedBitmap = FileUtil.resizeBitmap(bitmap, 720);
+                    String fileName = String.valueOf(System.currentTimeMillis()) + ".jpg";
+
+                    File file = FileUtil.bitmapToFile(GlobalConstant.APP_IMAGE_DIR_PATH, fileName, resizedBitmap);
+                    if (file == null) {
+                        return;
+                    }
+
+                    String path = file.getAbsolutePath();
+                    mCapturePaths.add(path);
+
+                    if (!isFinishing()) {
+                        updateDisplayViews();
+                        setDisplayViewsEnable(true);
+                    }
+
+                }).start()
+        );
     }
 
-    @Override
-    public void onPhotoTaken(byte[] bytes, String filePath) {
-        // 카메라 촬영 완료 Callback
-        mPictureUris.add(filePath);
-
-        btCameraRecord.setEnabled(true);
-        btCameraRecord.setText(String.valueOf(mPictureUris.size()));
-
-        replaceCameraFragment();
-        updateLatestPictureImageView();
-    }
-
-    @Override
-    public void onCurrentCameraBack() {
-        // 카메라가 전면 모드일 때
-    }
-
-    @Override
-    public void onCurrentCameraFront() {
-        // 카메라가 후면 모드일 때
-    }
-
-    @Override
-    public void onFlashAuto() {
-        // 플래시가 자동일 때
-    }
-
-    @Override
-    public void onFlashOn() {
-        // 플래시가 켜짐일 때
-    }
-
-    @Override
-    public void onFlashOff() {
-        // 플래시가 꺼짐일 때
-    }
-
-    @Override
-    public void onCameraSetupForPhoto() {
-        // 카메라가 사진 모드일 때
-    }
-
-    @Override
-    public void onCameraSetupForVideo() {
-        // 카메라가 동영상 모드일 때
-    }
-
-    @Override
-    public void onRecordStateVideoReadyForRecord() {
-        // 카메라 레코드 버튼을 눌렀을 때 (동영상 모드)
-    }
-
-    @Override
-    public void onRecordStateVideoInProgress() {
-        // 카메라 상태가 동영상 촬영중일 때
-    }
-
-    @Override
-    public void onRecordStatePhoto() {
-        // 카메라 레코드 버튼을 눌렀을 때 (사진 모드)
-        btCameraRecord.setEnabled(false);
-    }
-
-    @Override
-    public void shouldRotateControls(int degrees) {
-        // 카메라가 회전되었을 때 (0~270을 90단위로 노티)
-        if (mDisplayDegrees == degrees) {
-            return;
+    private void movingCapturePreviewActivity() {
+        if (mCapturePaths.size() > 0) {
+            Intent intent = new Intent(this, CameraPreviewActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            intent.putStringArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_PATHS, mCapturePaths);
+            startActivityForResult(intent, REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY);
         }
-        mDisplayDegrees = degrees;
-        startRotateAnimation(degrees);
     }
 
-    @Override
-    public void onStartVideoRecord(File outputFile) {
-        // 동영상 촬영 시작
+    @WorkerThread
+    private void updateDisplayViews() {
+        int captureSize = mCapturePaths.size();
+
+        runOnUiThread(() -> {
+            if (captureSize <= 0) {
+
+                if (flCaptureContainer.getVisibility() == View.VISIBLE) {
+                    flCaptureContainer.setVisibility(View.GONE);
+                }
+
+            } else {
+                String latestCapturePath = mCapturePaths.get(captureSize - 1);
+
+                Glide.with(this)
+                        .load(latestCapturePath)
+                        .apply(new RequestOptions()
+                                .circleCrop())
+                        .into(ivLatestCapture);
+
+                if (flCaptureContainer.getVisibility() != View.VISIBLE) {
+                    flCaptureContainer.setVisibility(View.VISIBLE);
+                }
+            }
+            btCameraRecord.setText(String.valueOf(captureSize));
+        });
     }
 
-    @Override
-    public void onStopVideoRecord() {
-        // 동영상 쵤영 정지
+    private void setDisplayViewsEnable(boolean isEnable) {
+        runOnUiThread(() -> {
+            if (ibtCameraFinish.isEnabled() != isEnable) {
+                ibtCameraFinish.setEnabled(isEnable);
+            }
+            if (ibtCapturesSend.isEnabled() != isEnable) {
+                ibtCapturesSend.setEnabled(isEnable);
+            }
+            if (btCameraRecord.isEnabled() != isEnable) {
+                btCameraRecord.setEnabled(isEnable);
+            }
+            if (flCaptureContainer.isEnabled() != isEnable) {
+                flCaptureContainer.setEnabled(isEnable);
+            }
+        });
     }
 
-    private void updateLatestPictureImageView() {
-        // 마지막으로 찍은 사지으로 이미지뷰 업데이트
-        int pictureSize = mPictureUris.size();
-
-        if (pictureSize <= 0) {
-            return;
-        }
-
-        String picturePath = mPictureUris.get(pictureSize - 1);
-
-        Glide.with(this)
-                .load(picturePath)
-                .apply(new RequestOptions()
-                        .circleCrop())
-                .into(ivPicture);
-    }
-
-    private void startRotateAnimation(int degrees) {
+    private void startRotateViewAnimation(int degrees) {
 
         if (degrees == 270) {
             degrees = -90;
         }
 
         btCameraRecord.animate()
-                .rotation(degrees)
+                .rotation(-degrees)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .setDuration(500)
                 .start();
 
-        flPictureContainer.animate()
-                .rotation(degrees)
+        flCaptureContainer.animate()
+                .rotation(-degrees)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .setDuration(500)
                 .start();
 
-        ibtPictureSend.animate()
-                .rotation(degrees)
+        ibtCapturesSend.animate()
+                .rotation(-degrees)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .setDuration(500)
                 .start();
 
         ibtCameraFinish.animate()
-                .rotation(degrees)
+                .rotation(-degrees)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .setDuration(500)
                 .start();
 
     }
 
-    private CameraFragment getCameraFragment() {
-        Fragment fragment = getSupportFragmentManager().findFragmentByTag(FRAGMENT_TAG_CAMERA);
-        return (fragment instanceof CameraFragment) ? ((CameraFragment) fragment) : null;
+    private void updateGallery(String path) {
+        if (!TextUtils.isEmpty(path) && path.contains(GlobalConstant.APP_IMAGE_DIR_PATH)) {
+            ContentValues values = new ContentValues();
+
+            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            values.put(MediaStore.MediaColumns.DATA, path);
+
+            ContentResolver contentResolver = GlobalApplication.getContext().getContentResolver();
+            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        }
     }
 
-    @Px
-    public int getStatusBarSize() {
-        Resources resources = getResources();
-        int resourceId = resources.getIdentifier("status_bar_height", "dimen", "android");
-        return resources.getDimensionPixelSize(resourceId);
-    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK) {
+            return;
+        }
+        switch (requestCode) {
+            case REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY:
+                ArrayList<String> newCapturePaths =
+                        data.getStringArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_PATHS);
 
+                if (mCapturePaths.size() != newCapturePaths.size()) {
+                    mCapturePaths.clear();
+                    mCapturePaths.addAll(newCapturePaths);
+                }
+
+                updateDisplayViews();
+                break;
+        }
+    }
 }

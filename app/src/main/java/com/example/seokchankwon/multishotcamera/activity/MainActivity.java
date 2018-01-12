@@ -4,12 +4,15 @@ import android.Manifest;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.example.seokchankwon.multishotcamera.R;
+import com.example.seokchankwon.multishotcamera.adapter.viewpager.CaptureCompleteAdapter;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
@@ -21,6 +24,9 @@ public class MainActivity extends AppCompatActivity {
 
     private Toolbar mToolbar;
 
+    private ViewPager mViewPager;
+    private CaptureCompleteAdapter mAdapter;
+
     private FloatingActionButton fabCamera;
 
 
@@ -30,15 +36,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         initView();
+        initViewPager();
         setSupportActionBar(mToolbar);
 
         fabCamera.setOnClickListener(v -> showCamera());
-
     }
 
     private void initView() {
         mToolbar = findViewById(R.id.tb_activity_main);
+        mViewPager = findViewById(R.id.vp_activity_main);
         fabCamera = findViewById(R.id.fab_activity_main_show_camera);
+    }
+
+    private void initViewPager() {
+        mAdapter = new CaptureCompleteAdapter(this, Glide.with(this));
+        mViewPager.setPageMargin(getResources().getDimensionPixelSize(R.dimen.dim_10dp));
+        mViewPager.setAdapter(mAdapter);
     }
 
     private void showCamera() {
@@ -62,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
     private void movingCameraActivity() {
         Intent intent = new Intent(this, CameraActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent.putExtra(CameraActivity.EXTRA_LIMIT_PICTURE_COUNT, 10);
+        intent.putExtra(CameraActivity.EXTRA_LIMIT_CAPTURE_COUNT, 10);
         startActivityForResult(intent, REQUEST_CODE_CAMERA);
     }
 
@@ -99,16 +112,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        ArrayList<String> pictureUris = data.getStringArrayListExtra(CameraActivity.REQUEST_EXTRA_PICTURE_URIS);
-        if (pictureUris == null) {
+        ArrayList<String> capturePaths = data.getStringArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+        if (capturePaths == null) {
             return;
         }
+        Toast.makeText(this, "captureCount = " + capturePaths.size(), Toast.LENGTH_SHORT).show();
 
-        for (String uri : pictureUris) {
-            Log.e("uris", "uri = " + uri);
-
-        }
-
-        Toast.makeText(this, "pictureCount = " + pictureUris.size(), Toast.LENGTH_SHORT).show();
+        mAdapter.setItems(capturePaths);
     }
 }

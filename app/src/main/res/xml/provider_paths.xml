@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+
+    <!-- 내부 캐시 저장소 -->
+    <cache-path
+        name="internal_cache_root"
+        path="." />
+
+    <!-- 외부 캐시 저장소 -->
+    <external-cache-path
+        name="external_cache_root"
+        path="." />
+
+    <!-- 내부 캐시 파일 저장소 -->
+    <cache-path
+        name="internal_cache_files"
+        path="./files" />
+
+    <!-- 외부 캐시 파일 저장소 -->
+    <external-cache-path
+        name="external_cache_files"
+        path="./files" />
+
+    <!-- 카메라 이미지 저장소 -->
+    <external-path
+        name="images"
+        path="./DCIM/MultiShotCamera" />
+
+</paths>
