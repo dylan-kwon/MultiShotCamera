@@ -3,7 +3,6 @@ package com.example.seokchankwon.multishotcamera.activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -29,6 +28,11 @@ import com.otaliastudios.cameraview.CameraException;
 import com.otaliastudios.cameraview.CameraListener;
 import com.otaliastudios.cameraview.CameraUtils;
 import com.otaliastudios.cameraview.CameraView;
+import com.otaliastudios.cameraview.Hdr;
+import com.otaliastudios.cameraview.SessionType;
+import com.otaliastudios.cameraview.SizeSelector;
+import com.otaliastudios.cameraview.SizeSelectors;
+import com.otaliastudios.cameraview.WhiteBalance;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -39,13 +43,24 @@ import java.util.ArrayList;
 
 public class CameraActivity extends AppCompatActivity {
 
-    public static final String SAVED_CAPTURE_PATHS = "saved.capture_paths";
+    public static final String EXTRA_JPEG_QUALITY = "extra.jpeg_quality";
+    public static final String EXTRA_CAPTURE_MIN_WIDTH = "extra.capture_min_width";
+    public static final String EXTRA_CAPTURE_MAX_WIDTH = "extra.capture_max_width";
+    public static final String EXTRA_CAPTURE_MIN_HEIGHT = "extra.capture_min_height";
+    public static final String EXTRA_CAPTURE_MAX_HEIGHT = "extra.capture_max_height";
     public static final String EXTRA_LIMIT_CAPTURE_COUNT = "extra.limit_capture_count";
+
+    public static final String SAVED_CAPTURE_PATHS = "saved.capture_paths";
 
     public static final String REQUEST_EXTRA_CAPTURE_PATHS = "request_extra.capture_paths";
 
     public static final int REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY = 1000;
 
+    private int mJpegQuality;
+    private int mCaptureMinWidth;
+    private int mCaptureMaxWidth;
+    private int mCaptureMinHeight;
+    private int mCaptureMaxHeight;
     private int mLimitCaptureCount;
 
     private CameraView mCameraView;
@@ -67,11 +82,10 @@ public class CameraActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
-        initView();
-        initCameraView();
-
         setupInstanceState(savedInstanceState);
 
+        initView();
+        initCameraView();
         updateDisplayViews();
 
         // 촬영버튼 클릭
@@ -114,10 +128,20 @@ public class CameraActivity extends AppCompatActivity {
     private void setupInstanceState(@Nullable Bundle savedInstanceState) {
         if (savedInstanceState != null) {
             mCapturePaths = savedInstanceState.getStringArrayList(SAVED_CAPTURE_PATHS);
+            mJpegQuality = savedInstanceState.getInt(EXTRA_JPEG_QUALITY, 100);
+            mCaptureMinWidth = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_WIDTH, 720);
+            mCaptureMinHeight = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_HEIGHT, 1280);
+            mCaptureMaxWidth = savedInstanceState.getInt(EXTRA_CAPTURE_MAX_WIDTH, mCaptureMinWidth);
+            mCaptureMaxHeight = savedInstanceState.getInt(EXTRA_CAPTURE_MAX_HEIGHT, mCaptureMinHeight);
             mLimitCaptureCount = savedInstanceState.getInt(EXTRA_LIMIT_CAPTURE_COUNT, 10);
 
         } else {
             mCapturePaths = new ArrayList<>();
+            mJpegQuality = getIntent().getIntExtra(EXTRA_JPEG_QUALITY, 100);
+            mCaptureMinWidth = getIntent().getIntExtra(EXTRA_CAPTURE_MIN_WIDTH, 720);
+            mCaptureMinHeight = getIntent().getIntExtra(EXTRA_CAPTURE_MIN_HEIGHT, 1280);
+            mCaptureMaxWidth = getIntent().getIntExtra(EXTRA_CAPTURE_MAX_WIDTH, mCaptureMinWidth);
+            mCaptureMaxHeight = getIntent().getIntExtra(EXTRA_CAPTURE_MAX_HEIGHT, mCaptureMinHeight);
             mLimitCaptureCount = getIntent().getIntExtra(EXTRA_LIMIT_CAPTURE_COUNT, 10);
         }
     }
@@ -125,8 +149,13 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt(EXTRA_LIMIT_CAPTURE_COUNT, mLimitCaptureCount);
         outState.putStringArrayList(SAVED_CAPTURE_PATHS, mCapturePaths);
+        outState.putInt(EXTRA_JPEG_QUALITY, mJpegQuality);
+        outState.putInt(EXTRA_CAPTURE_MIN_WIDTH, mCaptureMinWidth);
+        outState.putInt(EXTRA_CAPTURE_MIN_HEIGHT, mCaptureMinHeight);
+        outState.putInt(EXTRA_CAPTURE_MAX_WIDTH, mCaptureMaxWidth);
+        outState.putInt(EXTRA_CAPTURE_MAX_HEIGHT, mCaptureMaxHeight);
+        outState.putInt(EXTRA_LIMIT_CAPTURE_COUNT, mLimitCaptureCount);
     }
 
     private void initView() {
@@ -139,6 +168,19 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private void initCameraView() {
+        SizeSelector minWidth = SizeSelectors.minWidth(mCaptureMinWidth);
+        SizeSelector maxWidth = SizeSelectors.maxWidth(mCaptureMaxWidth);
+        SizeSelector minHeight = SizeSelectors.minHeight(mCaptureMinHeight);
+        SizeSelector maxHeight = SizeSelectors.maxHeight(mCaptureMaxHeight);
+
+        mCameraView.setHdr(Hdr.ON);
+        mCameraView.setJpegQuality(mJpegQuality);
+        mCameraView.setWhiteBalance(WhiteBalance.AUTO);
+        mCameraView.setSessionType(SessionType.PICTURE);
+
+        mCameraView.setPictureSize(SizeSelectors.or(
+                minWidth, maxWidth, minHeight, maxHeight));
+
         mCameraView.addCameraListener(new CameraListener() {
 
             @Override
@@ -202,10 +244,11 @@ public class CameraActivity extends AppCompatActivity {
         CameraUtils.decodeBitmap(jpeg, bitmap ->
                 new Thread(() -> {
 
-                    Bitmap resizedBitmap = FileUtil.resizeBitmap(bitmap, 720);
-                    String fileName = String.valueOf(System.currentTimeMillis()) + ".jpg";
+                    File file = FileUtil.bitmapToFile(
+                            GlobalConstant.APP_IMAGE_DIR_PATH,
+                            String.valueOf(System.currentTimeMillis()) + ".jpg",
+                            bitmap);
 
-                    File file = FileUtil.bitmapToFile(GlobalConstant.APP_IMAGE_DIR_PATH, fileName, resizedBitmap);
                     if (file == null) {
                         return;
                     }
