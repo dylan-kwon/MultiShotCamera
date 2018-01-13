@@ -1,6 +1,7 @@
 package com.example.seokchankwon.multishotcamera.activity;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.view.ViewPager;
@@ -58,16 +59,16 @@ public class CameraPreviewActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putStringArrayList(EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
+        outState.putParcelableArrayList(EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
     }
 
     private void setupInstanceState(@Nullable Bundle savedInstanceState) {
-        ArrayList<String> capturePaths;
+        ArrayList<Uri> capturePaths;
 
         if (savedInstanceState != null) {
-            capturePaths = savedInstanceState.getStringArrayList(EXTRA_CAPTURE_PATHS);
+            capturePaths = savedInstanceState.getParcelableArrayList(EXTRA_CAPTURE_PATHS);
         } else {
-            capturePaths = getIntent().getStringArrayListExtra(EXTRA_CAPTURE_PATHS);
+            capturePaths = getIntent().getParcelableArrayListExtra(EXTRA_CAPTURE_PATHS);
         }
 
         mViewPagerAdapter.setItems(capturePaths);
@@ -122,9 +123,9 @@ public class CameraPreviewActivity extends AppCompatActivity {
     }
 
     private void deleteCapture(int position) {
-        String deletePath = mRecyclerViewAdapter.getItem(position);
+        Uri deleteUri = mRecyclerViewAdapter.getItem(position);
 
-        new Thread(() -> FileUtil.deleteFile(deletePath))                              .start();
+        new Thread(() -> FileUtil.deleteFile(deleteUri)).start();
 
         mViewPagerAdapter.removeItem(position);
         mRecyclerViewAdapter.removeItem(position);
@@ -154,7 +155,7 @@ public class CameraPreviewActivity extends AppCompatActivity {
     @Override
     public void finish() {
         Intent intent = new Intent();
-        intent.putExtra(REQUEST_EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
+        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
         setResult(RESULT_OK, intent);
         super.finish();
     }

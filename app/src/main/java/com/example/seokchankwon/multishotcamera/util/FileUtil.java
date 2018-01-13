@@ -230,10 +230,6 @@ public class FileUtil {
     public static File resizeFile(String dirPath, @NonNull File file) {
         Uri uri = fileToUri(file);
 
-        if (uri == null) {
-            return null;
-        }
-
         Bitmap bitmap = uriToBitmap(uri);
 
         if (bitmap == null) {
@@ -254,7 +250,7 @@ public class FileUtil {
 
     /**
      * Bitmap을 File로 변환함.
-     * 파일의 생성 경로는 ../cache/files/
+     * 파일의 생성 경로는 /cache/files/
      *
      * @param fileName 생성될 파일의 이름
      * @param bitmap   이미지
@@ -314,23 +310,48 @@ public class FileUtil {
 
 
     /**
+     * file을 외부 앱에 전달할 경우 사용할 uri를 제공함.
+     * Android N(24)부터 외부에 file://uri를 직접적으로 노출하면 exception이 발생하기 때문에 사용.
+     *
+     * @param file 외부 앱에 전달할 파일.
+     */
+    @Nullable
+    public static Uri provideUriFromFile(@Nullable File file) {
+        if (file == null) {
+            return null;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return FileProvider.getUriForFile(
+                    GlobalApplication.getContext(), FILE_PROVIDER_AUTHORITY, file);
+        } else {
+            return fileToUri(file);
+        }
+    }
+
+
+    /**
      * file의 uri를 리턴함
-     * 안드로이드 누가(24) 이상과 하위 버전을 구분하기 위해 사용
      *
      * @param file file
      * @return file uri
      */
-    @Nullable
-    public static Uri fileToUri(File file) {
-        if (file != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                return FileProvider.getUriForFile(
-                        GlobalApplication.getContext(), FILE_PROVIDER_AUTHORITY, file);
-            } else {
-                return Uri.fromFile(file);
-            }
+    @NonNull
+    public static Uri fileToUri(@Nullable File file) {
+        return Uri.fromFile(file);
+    }
+
+
+    /**
+     * 파일 삭제
+     *
+     * @param uri 삭제할 파일의 Uri
+     */
+
+    public static void deleteFile(@Nullable Uri uri) {
+        if (uri != null) {
+            File file = uriToFile(uri);
+            deleteFile(file);
         }
-        return null;
     }
 
 

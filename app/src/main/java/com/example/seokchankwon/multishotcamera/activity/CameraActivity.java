@@ -3,13 +3,13 @@ package com.example.seokchankwon.multishotcamera.activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
 import android.support.v7.app.AppCompatActivity;
-import android.text.TextUtils;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
@@ -74,7 +74,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private FrameLayout flCaptureContainer;
 
-    private ArrayList<String> mCapturePaths;
+    private ArrayList<Uri> mCaptureUris;
 
 
     @Override
@@ -127,7 +127,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private void setupInstanceState(@Nullable Bundle savedInstanceState) {
         if (savedInstanceState != null) {
-            mCapturePaths = savedInstanceState.getStringArrayList(SAVED_CAPTURE_PATHS);
+            mCaptureUris = savedInstanceState.getParcelableArrayList(SAVED_CAPTURE_PATHS);
             mJpegQuality = savedInstanceState.getInt(EXTRA_JPEG_QUALITY, 100);
             mCaptureMinWidth = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_WIDTH, 720);
             mCaptureMinHeight = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_HEIGHT, 1280);
@@ -136,7 +136,7 @@ public class CameraActivity extends AppCompatActivity {
             mLimitCaptureCount = savedInstanceState.getInt(EXTRA_LIMIT_CAPTURE_COUNT, 10);
 
         } else {
-            mCapturePaths = new ArrayList<>();
+            mCaptureUris = new ArrayList<>();
             mJpegQuality = getIntent().getIntExtra(EXTRA_JPEG_QUALITY, 100);
             mCaptureMinWidth = getIntent().getIntExtra(EXTRA_CAPTURE_MIN_WIDTH, 720);
             mCaptureMinHeight = getIntent().getIntExtra(EXTRA_CAPTURE_MIN_HEIGHT, 1280);
@@ -149,7 +149,7 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putStringArrayList(SAVED_CAPTURE_PATHS, mCapturePaths);
+        outState.putParcelableArrayList(SAVED_CAPTURE_PATHS, mCaptureUris);
         outState.putInt(EXTRA_JPEG_QUALITY, mJpegQuality);
         outState.putInt(EXTRA_CAPTURE_MIN_WIDTH, mCaptureMinWidth);
         outState.putInt(EXTRA_CAPTURE_MIN_HEIGHT, mCaptureMinHeight);
@@ -204,7 +204,7 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private void takePicture() {
-        if (mCapturePaths.size() >= mLimitCaptureCount) {
+        if (mCaptureUris.size() >= mLimitCaptureCount) {
             String toastMsg = getString(R.string.take_picture_max)
                     + " " + String.valueOf(mLimitCaptureCount)
                     + getString(R.string.take_picture_max_select);
@@ -218,13 +218,13 @@ public class CameraActivity extends AppCompatActivity {
     private void sendCaptureImage() {
 
         new Thread(() -> {
-            for (String path : mCapturePaths) {
-                updateGallery(path);
+            for (Uri uri : mCaptureUris) {
+                updateGallery(uri);
             }
         }).start();
 
         Intent intent = new Intent();
-        intent.putStringArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mCapturePaths);
+        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mCaptureUris);
         setResult(RESULT_OK, intent);
 
         finish();
@@ -232,8 +232,8 @@ public class CameraActivity extends AppCompatActivity {
 
     private void cancelCameraActivity() {
         new Thread(() -> {
-            for (String path : mCapturePaths) {
-                FileUtil.deleteFile(path);
+            for (Uri uri : mCaptureUris) {
+                FileUtil.deleteFile(uri);
             }
         }).start();
 
@@ -253,8 +253,8 @@ public class CameraActivity extends AppCompatActivity {
                         return;
                     }
 
-                    String path = file.getAbsolutePath();
-                    mCapturePaths.add(path);
+                    Uri uri = FileUtil.fileToUri(file);
+                    mCaptureUris.add(uri);
 
                     if (!isFinishing()) {
                         updateDisplayViews();
@@ -266,17 +266,17 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private void movingCapturePreviewActivity() {
-        if (mCapturePaths.size() > 0) {
+        if (mCaptureUris.size() > 0) {
             Intent intent = new Intent(this, CameraPreviewActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putStringArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_PATHS, mCapturePaths);
+            intent.putParcelableArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_PATHS, mCaptureUris);
             startActivityForResult(intent, REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY);
         }
     }
 
     @WorkerThread
     private void updateDisplayViews() {
-        int captureSize = mCapturePaths.size();
+        int captureSize = mCaptureUris.size();
 
         runOnUiThread(() -> {
             if (captureSize <= 0) {
@@ -286,10 +286,10 @@ public class CameraActivity extends AppCompatActivity {
                 }
 
             } else {
-                String latestCapturePath = mCapturePaths.get(captureSize - 1);
+                Uri latestCaptureUri = mCaptureUris.get(captureSize - 1);
 
                 Glide.with(this)
-                        .load(latestCapturePath)
+                        .load(latestCaptureUri)
                         .apply(new RequestOptions()
                                 .circleCrop())
                         .into(ivLatestCapture);
@@ -351,17 +351,24 @@ public class CameraActivity extends AppCompatActivity {
 
     }
 
-    private void updateGallery(String path) {
-        if (!TextUtils.isEmpty(path) && path.contains(GlobalConstant.APP_IMAGE_DIR_PATH)) {
-            ContentValues values = new ContentValues();
-
-            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            values.put(MediaStore.MediaColumns.DATA, path);
-
-            ContentResolver contentResolver = GlobalApplication.getContext().getContentResolver();
-            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+    private void updateGallery(Uri uri) {
+        if (uri == null) {
+            return;
         }
+
+        String path = uri.getPath();
+        if (!path.contains(GlobalConstant.APP_IMAGE_DIR_PATH)) {
+            return;
+        }
+
+        ContentValues values = new ContentValues();
+
+        values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        values.put(MediaStore.MediaColumns.DATA, path);
+
+        ContentResolver contentResolver = GlobalApplication.getContext().getContentResolver();
+        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
     }
 
     @Override
@@ -372,12 +379,12 @@ public class CameraActivity extends AppCompatActivity {
         }
         switch (requestCode) {
             case REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY:
-                ArrayList<String> newCapturePaths =
-                        data.getStringArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+                ArrayList<Uri> newCapturePaths =
+                        data.getParcelableArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_PATHS);
 
-                if (mCapturePaths.size() != newCapturePaths.size()) {
-                    mCapturePaths.clear();
-                    mCapturePaths.addAll(newCapturePaths);
+                if (mCaptureUris.size() != newCapturePaths.size()) {
+                    mCaptureUris.clear();
+                    mCaptureUris.addAll(newCapturePaths);
                 }
 
                 updateDisplayViews();

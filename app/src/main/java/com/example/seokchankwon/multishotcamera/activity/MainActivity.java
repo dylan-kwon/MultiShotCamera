@@ -2,11 +2,13 @@ package com.example.seokchankwon.multishotcamera.activity;
 
 import android.Manifest;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
@@ -111,12 +113,17 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        ArrayList<String> capturePaths = data.getStringArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_PATHS);
-        if (capturePaths == null) {
+        ArrayList<Uri> captureUris = data.getParcelableArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+        if (captureUris == null) {
             return;
         }
-        Toast.makeText(this, "captureCount = " + capturePaths.size(), Toast.LENGTH_SHORT).show();
 
-        mAdapter.setItems(capturePaths);
+        for (Uri uri : captureUris) {
+            Log.e("TAG", "uri: " + uri);
+        }
+
+        Toast.makeText(this, "captureCount = " + captureUris.size(), Toast.LENGTH_SHORT).show();
+
+        mAdapter.setItems(captureUris);
     }
 }

@@ -1,10 +1,9 @@
 package com.example.seokchankwon.multishotcamera.adapter.viewpager;
 
 import android.content.Context;
-import android.support.annotation.LayoutRes;
+import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -17,7 +16,7 @@ import com.example.seokchankwon.multishotcamera.R;
  * Created by seokchan.kwon on 2018. 1. 11..
  */
 
-public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
+public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<Uri> {
 
     private RequestManager mRequestManager;
 
@@ -32,7 +31,7 @@ public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
         View view = getInflater().inflate(R.layout.viewpager_capture_preview, container, false);
 
         CapturePreviewViewPagerHolder holder = new CapturePreviewViewPagerHolder(view);
-        holder.bind(position, getItem(position));
+        holder.bind(getItem(position), position);
 
         view.setTag(holder);
 
@@ -57,8 +56,8 @@ public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
         try {
             int adapterPosition = holder.getAdapterPosition();
 
-            String oldItem = holder.getCapturePath();
-            String newItem = getItem(adapterPosition);
+            Uri oldItem = holder.getCapturePath();
+            Uri newItem = getItem(adapterPosition);
 
             if (!newItem.equals(oldItem)) {
                 return POSITION_NONE;
@@ -72,7 +71,7 @@ public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
 
     public class CapturePreviewViewPagerHolder {
 
-        private String mCapturePath;
+        private Uri mCaptureUri;
 
         private int mAdapterPosition;
 
@@ -86,17 +85,17 @@ public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
             ivCapture = itemView.findViewById(R.id.iv_viewpager_capture_preview);
         }
 
-        public void bind(int position, String capturePath) {
-            if (TextUtils.isEmpty(capturePath)) {
+        public void bind(Uri captureUri, int position) {
+            if (captureUri == null) {
                 return;
             }
             mRequestManager
-                    .load(capturePath)
+                    .load(captureUri)
                     .apply(new RequestOptions()
                             .centerInside())
                     .into(ivCapture);
 
-            mCapturePath = capturePath;
+            mCaptureUri = captureUri;
             mAdapterPosition = position;
         }
 
@@ -105,8 +104,8 @@ public class CapturePreviewViewPagerAdapter extends BasePagerAdapter<String> {
         }
 
         @Nullable
-        public String getCapturePath() {
-            return mCapturePath;
+        public Uri getCapturePath() {
+            return mCaptureUri;
         }
 
     }

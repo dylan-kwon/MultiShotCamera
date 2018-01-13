@@ -2,11 +2,11 @@ package com.example.seokchankwon.multishotcamera.adapter.recyclerview;
 
 import android.content.Context;
 import android.graphics.PorterDuff;
+import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.RecyclerView;
-import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -19,7 +19,7 @@ import com.example.seokchankwon.multishotcamera.R;
  * Created by seokchan.kwon on 2018. 1. 11..
  */
 
-public class CapturePreviewRecyclerViewAdapter extends SingleChoiceAdapter<String> {
+public class CapturePreviewRecyclerViewAdapter extends SingleChoiceAdapter<Uri> {
 
     private RequestManager mRequestManager;
 
@@ -41,11 +41,11 @@ public class CapturePreviewRecyclerViewAdapter extends SingleChoiceAdapter<Strin
             return;
         }
 
-        String capturePath = getItem(adapterPosition);
+        Uri captureUri = getItem(adapterPosition);
 
         if (holder instanceof Holder) {
             Holder itemHolder = (Holder) holder;
-            itemHolder.bind(capturePath, isCheckedPosition(adapterPosition));
+            itemHolder.bind(captureUri, isCheckedPosition(adapterPosition));
         }
     }
 
@@ -62,13 +62,13 @@ public class CapturePreviewRecyclerViewAdapter extends SingleChoiceAdapter<Strin
             ivCapture = itemView.findViewById(R.id.iv_listview_capture_preview);
         }
 
-        public void bind(@Nullable String capturePath, boolean isChecked) {
-            if (TextUtils.isEmpty(capturePath)) {
+        public void bind(@Nullable Uri captureUri, boolean isChecked) {
+            if (captureUri == null) {
                 return;
             }
 
             mRequestManager
-                    .load(capturePath)
+                    .load(captureUri)
                     .apply(new RequestOptions()
                             .centerCrop())
                     .into(ivCapture);
