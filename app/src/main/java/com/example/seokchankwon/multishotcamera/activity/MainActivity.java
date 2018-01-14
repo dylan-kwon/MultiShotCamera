@@ -126,4 +126,5 @@ public class MainActivity extends AppCompatActivity {
 
         mAdapter.setItems(captureUris);
     }
+
 }
