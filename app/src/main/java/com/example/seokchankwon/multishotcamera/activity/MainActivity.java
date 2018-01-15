@@ -113,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        ArrayList<Uri> captureUris = data.getParcelableArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+        ArrayList<Uri> captureUris = data.getParcelableArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_URIS);
         if (captureUris == null) {
             return;
         }

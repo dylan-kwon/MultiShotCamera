@@ -27,8 +27,8 @@ import java.util.ArrayList;
 
 public class CameraPreviewActivity extends AppCompatActivity {
 
-    public static final String EXTRA_CAPTURE_PATHS = "extra.capture_paths";
-    public static final String REQUEST_EXTRA_CAPTURE_PATHS = "request_extra.capture_paths";
+    public static final String EXTRA_CAPTURE_URIS = "extra.capture_uris";
+    public static final String REQUEST_EXTRA_CAPTURE_URIS = "request_extra.capture_uris";
 
     private Toolbar mToolbar;
 
@@ -59,20 +59,20 @@ public class CameraPreviewActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putParcelableArrayList(EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
+        outState.putParcelableArrayList(EXTRA_CAPTURE_URIS, mRecyclerViewAdapter.getItems());
     }
 
     private void setupInstanceState(@Nullable Bundle savedInstanceState) {
-        ArrayList<Uri> capturePaths;
+        ArrayList<Uri> captureUris;
 
         if (savedInstanceState != null) {
-            capturePaths = savedInstanceState.getParcelableArrayList(EXTRA_CAPTURE_PATHS);
+            captureUris = savedInstanceState.getParcelableArrayList(EXTRA_CAPTURE_URIS);
         } else {
-            capturePaths = getIntent().getParcelableArrayListExtra(EXTRA_CAPTURE_PATHS);
+            captureUris = getIntent().getParcelableArrayListExtra(EXTRA_CAPTURE_URIS);
         }
 
-        mViewPagerAdapter.setItems(capturePaths);
-        mRecyclerViewAdapter.setItems(capturePaths);
+        mViewPagerAdapter.setItems(captureUris);
+        mRecyclerViewAdapter.setItems(captureUris);
     }
 
     private void initView() {
@@ -155,7 +155,7 @@ public class CameraPreviewActivity extends AppCompatActivity {
     @Override
     public void finish() {
         Intent intent = new Intent();
-        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mRecyclerViewAdapter.getItems());
+        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_URIS, mRecyclerViewAdapter.getItems());
         setResult(RESULT_OK, intent);
         super.finish();
     }

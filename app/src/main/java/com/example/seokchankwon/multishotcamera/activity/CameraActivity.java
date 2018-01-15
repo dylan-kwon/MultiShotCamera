@@ -50,9 +50,9 @@ public class CameraActivity extends AppCompatActivity {
     public static final String EXTRA_CAPTURE_MAX_HEIGHT = "extra.capture_max_height";
     public static final String EXTRA_LIMIT_CAPTURE_COUNT = "extra.limit_capture_count";
 
-    public static final String SAVED_CAPTURE_PATHS = "saved.capture_paths";
+    public static final String SAVED_CAPTURE_URIS = "saved.capture_uris";
 
-    public static final String REQUEST_EXTRA_CAPTURE_PATHS = "request_extra.capture_paths";
+    public static final String REQUEST_EXTRA_CAPTURE_URIS = "request_extra.capture_uris";
 
     public static final int REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY = 1000;
 
@@ -127,7 +127,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private void setupInstanceState(@Nullable Bundle savedInstanceState) {
         if (savedInstanceState != null) {
-            mCaptureUris = savedInstanceState.getParcelableArrayList(SAVED_CAPTURE_PATHS);
+            mCaptureUris = savedInstanceState.getParcelableArrayList(SAVED_CAPTURE_URIS);
             mJpegQuality = savedInstanceState.getInt(EXTRA_JPEG_QUALITY, 100);
             mCaptureMinWidth = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_WIDTH, 720);
             mCaptureMinHeight = savedInstanceState.getInt(EXTRA_CAPTURE_MIN_HEIGHT, 1280);
@@ -149,7 +149,7 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putParcelableArrayList(SAVED_CAPTURE_PATHS, mCaptureUris);
+        outState.putParcelableArrayList(SAVED_CAPTURE_URIS, mCaptureUris);
         outState.putInt(EXTRA_JPEG_QUALITY, mJpegQuality);
         outState.putInt(EXTRA_CAPTURE_MIN_WIDTH, mCaptureMinWidth);
         outState.putInt(EXTRA_CAPTURE_MIN_HEIGHT, mCaptureMinHeight);
@@ -224,7 +224,7 @@ public class CameraActivity extends AppCompatActivity {
         }).start();
 
         Intent intent = new Intent();
-        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_PATHS, mCaptureUris);
+        intent.putParcelableArrayListExtra(REQUEST_EXTRA_CAPTURE_URIS, mCaptureUris);
         setResult(RESULT_OK, intent);
 
         finish();
@@ -269,7 +269,7 @@ public class CameraActivity extends AppCompatActivity {
         if (mCaptureUris.size() > 0) {
             Intent intent = new Intent(this, CameraPreviewActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putParcelableArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_PATHS, mCaptureUris);
+            intent.putParcelableArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_URIS, mCaptureUris);
             startActivityForResult(intent, REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY);
         }
     }
@@ -379,12 +379,12 @@ public class CameraActivity extends AppCompatActivity {
         }
         switch (requestCode) {
             case REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY:
-                ArrayList<Uri> newCapturePaths =
-                        data.getParcelableArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+                ArrayList<Uri> newCaptureUris =
+                        data.getParcelableArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_URIS);
 
-                if (mCaptureUris.size() != newCapturePaths.size()) {
+                if (mCaptureUris.size() != newCaptureUris.size()) {
                     mCaptureUris.clear();
-                    mCaptureUris.addAll(newCapturePaths);
+                    mCaptureUris.addAll(newCaptureUris);
                 }
 
                 updateDisplayViews();

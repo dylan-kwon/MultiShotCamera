@@ -59,7 +59,7 @@ How to use
 >                 if (resultCode != RESULT_OK) {
 >                     return;
 >                 }
->                 ArrayList<Uri> captureUris = data.getParcelableArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+>                 ArrayList<Uri> captureUris = data.getParcelableArrayListExtra(CameraActivity.REQUEST_EXTRA_CAPTURE_URIS);
 >                 if (captureUris == null) {
 >                     return;
 >                 }
@@ -85,7 +85,7 @@ How to use
 >         if (mCaptureUris.size() > 0) {
 >             Intent intent = new Intent(this, CameraPreviewActivity.class);
 >             intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
->             intent.putParcelableArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_PATHS, mCaptureUris);
+>             intent.putParcelableArrayListExtra(CameraPreviewActivity.EXTRA_CAPTURE_URIS, mCaptureUris);
 >             startActivityForResult(intent, REQUEST_CODE_CAMERA_PREVIEW_ACTIVITY);
 >         }
 >     }
@@ -103,12 +103,12 @@ How to use
 >                    return;
 >                }
 >                
->                ArrayList<Uri> newCapturePaths =
->                        data.getParcelableArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_PATHS);
+>                ArrayList<Uri> newCaptureUris =
+>                        data.getParcelableArrayListExtra(CameraPreviewActivity.REQUEST_EXTRA_CAPTURE_URIS);
 >
->                if (mCaptureUris.size() != newCapturePaths.size()) {
+>                if (mCaptureUris.size() != newCaptureUris.size()) {
 >                    mCaptureUris.clear();
->                    mCaptureUris.addAll(newCapturePaths);
+>                    mCaptureUris.addAll(newCaptureUris);
 >                }
 >                break;
 >        }
